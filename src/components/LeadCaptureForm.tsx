@@ -13,6 +13,7 @@ export const LeadCaptureForm = () => {
   const [leads, setLeads] = useState<
     Array<{ name: string; email: string; industry: string; submitted_at: string }>
   >([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setSubmitted(false);
@@ -20,61 +21,49 @@ export const LeadCaptureForm = () => {
   const getFieldError = (field: string) => {
     return validationErrors.find(error => error.field === field)?.message;
   };
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const errors = validateLeadForm(formData);
-    setValidationErrors(errors);
+  
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  const errors = validateLeadForm(formData);
+  setValidationErrors(errors);
 
-    if (errors.length === 0) {
-      // Save to database
-try {
-  const { error: emailError } = await supabase.functions.invoke('send-confirmation', {
-    body: {
-      name: formData.name,
-      email: formData.email,
-      industry: formData.industry,
-    },
-  });
+  if (errors.length === 0) {
+    setLoading(true); // START LOADING
 
-  if (emailError) {
-    console.error('Error sending confirmation email:', emailError);
-  } else {
-    console.log('Confirmation email sent successfully');
-  }
-} catch (emailError) {
-  console.error('Error calling email function:', emailError);
-}
+    try {
+      const { error: emailError } = await supabase.functions.invoke('send-confirmation', {
+        body: {
+          name: formData.name,
+          email: formData.email,
+          industry: formData.industry,
+        },
+      });
 
-      // Send confirmation email
-      try {
-        const { error: emailError } = await supabase.functions.invoke('send-confirmation', {
-          body: {
-            name: formData.name,
-            email: formData.email,
-            industry: formData.industry,
-          },
-        });
-
-        if (emailError) {
-          console.error('Error sending confirmation email:', emailError);
-        } else {
-          console.log('Confirmation email sent successfully');
-        }
-      } catch (emailError) {
-        console.error('Error calling email function:', emailError);
+      if (emailError) {
+        console.error('Error sending confirmation email:', emailError);
+      } else {
+        console.log('Confirmation email sent successfully');
       }
 
       const lead = {
         name: formData.name,
         email: formData.email,
         industry: formData.industry,
-        submitted_at: new Date().toISOString(), 
+        submitted_at: new Date().toISOString(),
       };
+
       setLeads([...leads, lead]);
       setSubmitted(true);
       setFormData({ name: '', email: '', industry: '' });
+    } catch (error) {
+      console.error('Error calling email function:', error);
     }
-  };
+
+    setLoading(false); // STOP LOADING
+  }
+};
+
+
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -207,13 +196,12 @@ try {
             )}
           </div>
 
-          <Button
-            type="submit"
-            className="w-full h-12 bg-gradient-primary text-primary-foreground font-semibold rounded-lg shadow-glow hover:shadow-[0_0_60px_hsl(210_100%_60%/0.3)] transition-smooth transform hover:scale-[1.02]"
-          >
-            <CheckCircle className="w-5 h-5 mr-2" />
-            Get Early Access
-          </Button>
+           {/* Show loader */}
+    {loading ? <p style={{ color: '#666', marginTop: '10px' }}>Sending confirmation...</p> : null}
+
+    <button type="submit" disabled={loading}>
+      {loading ? 'Submitting...' : 'Get Early Access'}
+    </button>
         </form>
 
         <p className="text-xs text-muted-foreground text-center mt-6">
